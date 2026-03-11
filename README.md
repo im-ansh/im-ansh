@@ -11,7 +11,7 @@ I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
 <div align="center">
   <img src="ping-pong.svg" alt="Ping Pong SVG Game" />
 </div>
-*GitHub doesn't support playable games in READMEs, but you can [play the real version here!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)*
+*GitHub doesn't support playable games in READMEs, but you can [play the real version here!](https://pingpongansh.vercel.app)*
 
 ### ✨ Some of my qualities are
 - 💻 Coding

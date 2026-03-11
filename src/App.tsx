@@ -1,153 +1,178 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Check, ExternalLink, Github, Code, Gamepad2, Megaphone, Palette } from 'lucide-react';
+import { Copy, Check, ExternalLink, Github, Code, Gamepad2, Megaphone, Palette, Users } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 
 const PingPongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scores, setScores] = useState({ player: 0, ai: 0 });
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [roomId, setRoomId] = useState('');
+  const [joinId, setJoinId] = useState('');
+  const [status, setStatus] = useState<'idle' | 'waiting' | 'playing'>('idle');
+  const [scores, setScores] = useState({ player1: 0, player2: 0 });
+  const [isPlayer1, setIsPlayer1] = useState(false);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    const newSocket = io();
+    setSocket(newSocket);
+
+    newSocket.on('roomCreated', (id) => {
+      setRoomId(id);
+      setStatus('waiting');
+      setIsPlayer1(true);
+    });
+
+    newSocket.on('roomJoined', (id) => {
+      setRoomId(id);
+      setStatus('playing');
+      setIsPlayer1(false);
+    });
+
+    newSocket.on('gameStart', () => {
+      setStatus('playing');
+    });
+
+    newSocket.on('playerDisconnected', () => {
+      setStatus('idle');
+      setRoomId('');
+      alert('Opponent disconnected!');
+    });
+
+    newSocket.on('error', (msg) => {
+      alert(msg);
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'playing' || !socket) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationId: number;
-    const paddleHeight = 80;
-    const paddleWidth = 10;
-    const ballRadius = 8;
-
-    let ballX = canvas.width / 2;
-    let ballY = canvas.height / 2;
-    let ballSpeedX = 5;
-    let ballSpeedY = 5;
-
-    let playerY = (canvas.height - paddleHeight) / 2;
-    let aiY = (canvas.height - paddleHeight) / 2;
-
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const root = document.documentElement;
       const mouseY = e.clientY - rect.top - root.scrollTop;
-      playerY = mouseY - paddleHeight / 2;
-      if (playerY < 0) playerY = 0;
-      if (playerY > canvas.height - paddleHeight) playerY = canvas.height - paddleHeight;
+      let y = mouseY - 40; // half paddle height
+      if (y < 0) y = 0;
+      if (y > canvas.height - 80) y = canvas.height - 80;
+      
+      socket.emit('paddleMove', { roomId, y });
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
 
-    const resetBall = () => {
-      ballX = canvas.width / 2;
-      ballY = canvas.height / 2;
-      ballSpeedX = -ballSpeedX;
-      ballSpeedY = 5 * (Math.random() > 0.5 ? 1 : -1);
-    };
+    socket.on('gameState', (state) => {
+      setScores({ player1: state.score1, player2: state.score2 });
 
-    const draw = () => {
       // Clear
       ctx.fillStyle = '#0d1117';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, state.width, state.height);
 
       // Draw net
       ctx.fillStyle = '#30363d';
-      for (let i = 0; i < canvas.height; i += 40) {
-        ctx.fillRect(canvas.width / 2 - 1, i, 2, 20);
-      }
-
-      // Move AI
-      const aiCenter = aiY + paddleHeight / 2;
-      if (aiCenter < ballY - 35) {
-        aiY += 4;
-      } else if (aiCenter > ballY + 35) {
-        aiY -= 4;
-      }
-      // Clamp AI
-      if (aiY < 0) aiY = 0;
-      if (aiY > canvas.height - paddleHeight) aiY = canvas.height - paddleHeight;
-
-      // Move Ball
-      ballX += ballSpeedX;
-      ballY += ballSpeedY;
-
-      // Bounce top/bottom
-      if (ballY - ballRadius < 0 || ballY + ballRadius > canvas.height) {
-        ballSpeedY = -ballSpeedY;
-      }
-
-      // Bounce paddles
-      // Player (Left)
-      if (ballX - ballRadius < paddleWidth) {
-        if (ballY > playerY && ballY < playerY + paddleHeight) {
-          ballSpeedX = -ballSpeedX;
-          const deltaY = ballY - (playerY + paddleHeight / 2);
-          ballSpeedY = deltaY * 0.2;
-        } else if (ballX < 0) {
-          setScores(s => ({ ...s, ai: s.ai + 1 }));
-          resetBall();
-        }
-      }
-
-      // AI (Right)
-      if (ballX + ballRadius > canvas.width - paddleWidth) {
-        if (ballY > aiY && ballY < aiY + paddleHeight) {
-          ballSpeedX = -ballSpeedX;
-          const deltaY = ballY - (aiY + paddleHeight / 2);
-          ballSpeedY = deltaY * 0.2;
-        } else if (ballX > canvas.width) {
-          setScores(s => ({ ...s, player: s.player + 1 }));
-          resetBall();
-        }
+      for (let i = 0; i < state.height; i += 40) {
+        ctx.fillRect(state.width / 2 - 1, i, 2, 20);
       }
 
       // Draw Paddles
-      ctx.fillStyle = '#58a6ff'; // Player
-      ctx.fillRect(0, playerY, paddleWidth, paddleHeight);
+      ctx.fillStyle = '#58a6ff'; // P1
+      ctx.fillRect(0, state.p1Y, state.paddleWidth, state.paddleHeight);
       
-      ctx.fillStyle = '#ff7b72'; // AI
-      ctx.fillRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight);
+      ctx.fillStyle = '#ff7b72'; // P2
+      ctx.fillRect(state.width - state.paddleWidth, state.p2Y, state.paddleWidth, state.paddleHeight);
 
       // Draw Ball
       ctx.beginPath();
-      ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+      ctx.arc(state.ballX, state.ballY, state.ballRadius, 0, Math.PI * 2);
       ctx.fillStyle = '#c9d1d9';
       ctx.fill();
       ctx.closePath();
-
-      animationId = requestAnimationFrame(draw);
-    };
-
-    draw();
+    });
 
     return () => {
-      cancelAnimationFrame(animationId);
       canvas.removeEventListener('mousemove', handleMouseMove);
+      socket.off('gameState');
     };
-  }, [isPlaying]);
+  }, [status, socket, roomId]);
+
+  const createRoom = () => {
+    socket?.emit('createRoom');
+  };
+
+  const joinRoom = () => {
+    if (joinId.trim()) {
+      socket?.emit('joinRoom', joinId.trim());
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-4 my-8 p-6 bg-[#161b22] border border-[#30363d] rounded-xl">
-      <div className="flex justify-between w-full max-w-[600px] px-4 font-mono text-xl">
-        <span className="text-[#58a6ff]">Player: {scores.player}</span>
-        <span className="text-[#ff7b72]">AI: {scores.ai}</span>
-      </div>
-      
-      {isPlaying ? (
-        <canvas 
-          ref={canvasRef} 
-          width={600} 
-          height={400} 
-          className="bg-[#0d1117] border border-[#30363d] rounded-lg shadow-inner cursor-none w-full max-w-[600px] aspect-[3/2]"
-        />
-      ) : (
-        <div 
-          className="w-full max-w-[600px] aspect-[3/2] bg-[#0d1117] border border-[#30363d] rounded-lg flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-[#58a6ff] transition-colors"
-          onClick={() => setIsPlaying(true)}
-        >
+      {status === 'idle' && (
+        <div className="flex flex-col items-center gap-6 w-full max-w-[600px] py-8">
           <Gamepad2 className="w-16 h-16 text-[#8b949e]" />
-          <span className="text-xl font-semibold text-white">Click to Play Ping Pong</span>
-          <span className="text-sm text-[#8b949e]">Use your mouse to move the paddle</span>
+          <h3 className="text-xl font-semibold text-white">Local Multiplayer Ping Pong</h3>
+          <p className="text-[#8b949e] text-center max-w-md">
+            Play with a friend on the same Wi-Fi network! One person creates a room, the other joins using the code.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mt-4">
+            <button 
+              onClick={createRoom}
+              className="flex-1 bg-[#238636] hover:bg-[#2ea043] text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <Users className="w-5 h-5" />
+              Create Room
+            </button>
+            <div className="flex flex-1 gap-2">
+              <input 
+                type="text" 
+                placeholder="Room Code" 
+                value={joinId}
+                onChange={(e) => setJoinId(e.target.value.toUpperCase())}
+                className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 text-white uppercase focus:outline-none focus:border-[#58a6ff]"
+                maxLength={6}
+              />
+              <button 
+                onClick={joinRoom}
+                className="bg-[#1f6feb] hover:bg-[#388bfd] text-white px-4 rounded-lg font-medium transition-colors"
+              >
+                Join
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {status === 'waiting' && (
+        <div className="flex flex-col items-center gap-4 w-full max-w-[600px] py-12">
+          <div className="w-16 h-16 border-4 border-[#30363d] border-t-[#58a6ff] rounded-full animate-spin"></div>
+          <h3 className="text-xl font-semibold text-white mt-4">Waiting for opponent...</h3>
+          <p className="text-[#8b949e]">Share this room code with your friend:</p>
+          <div className="bg-[#0d1117] border border-[#30363d] px-8 py-4 rounded-xl text-3xl font-mono text-white tracking-widest">
+            {roomId}
+          </div>
+        </div>
+      )}
+
+      {status === 'playing' && (
+        <>
+          <div className="flex justify-between w-full max-w-[600px] px-4 font-mono text-xl">
+            <span className="text-[#58a6ff]">P1: {scores.player1} {isPlayer1 && '(You)'}</span>
+            <span className="text-white font-bold text-sm bg-[#30363d] px-3 py-1 rounded-full self-center">Room: {roomId}</span>
+            <span className="text-[#ff7b72]">P2: {scores.player2} {!isPlayer1 && '(You)'}</span>
+          </div>
+          <canvas 
+            ref={canvasRef} 
+            width={600} 
+            height={400} 
+            className="bg-[#0d1117] border border-[#30363d] rounded-lg shadow-inner cursor-none w-full max-w-[600px] aspect-[3/2]"
+          />
+        </>
       )}
     </div>
   );
@@ -169,7 +194,7 @@ I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
 <div align="center">
   <img src="ping-pong.svg" alt="Ping Pong SVG Game" />
 </div>
-*GitHub doesn't support playable games in READMEs, but you can [play the real version here!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)*
+*GitHub doesn't support playable games in READMEs, but you can [play the real version here!](https://pingpongansh.vercel.app)*
 
 ### ✨ Some of my qualities are
 - 💻 Coding
@@ -272,12 +297,12 @@ I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
               <div className="flex flex-col items-center gap-4 mb-8">
                 <img src="/ping-pong.svg" alt="Ping Pong Animation" className="w-full max-w-[600px] rounded-xl shadow-lg border border-[#30363d]" />
                 <p className="text-[#8b949e] text-center text-sm">
-                  *GitHub doesn't support playable games in READMEs, but you can <a href="https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app" target="_blank" rel="noreferrer" className="text-[#58a6ff] hover:underline">play the real version here!</a>*
+                  *GitHub doesn't support playable games in READMEs, but you can <a href="https://pingpongansh.vercel.app" target="_blank" rel="noreferrer" className="text-[#58a6ff] hover:underline">play the real version here!</a>*
                 </p>
               </div>
               
               <div className="bg-[#161b22] p-6 rounded-xl border border-[#30363d]">
-                <h3 className="text-lg font-medium text-white mb-4 text-center">Playable Version (Website Only)</h3>
+                <h3 className="text-lg font-medium text-white mb-4 text-center">Playable Multiplayer Version (Website Only)</h3>
                 <PingPongGame />
               </div>
             </div>
