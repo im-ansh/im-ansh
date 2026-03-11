@@ -17,24 +17,29 @@ async function startServer() {
 
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+    socket.emit("serverMessage", "Connected to server successfully!");
 
     socket.on("createRoom", () => {
-      const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-      rooms.set(roomId, {
-        p1: socket.id,
-        p2: null,
-        state: {
-          ballX: 300, ballY: 200,
-          ballSpeedX: 5, ballSpeedY: 5,
-          p1Y: 160, p2Y: 160,
-          score1: 0, score2: 0,
-          width: 600, height: 400,
-          paddleHeight: 80, paddleWidth: 10, ballRadius: 8
-        },
-        interval: null
-      });
-      socket.join(roomId);
-      socket.emit("roomCreated", roomId);
+      try {
+        const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        rooms.set(roomId, {
+          p1: socket.id,
+          p2: null,
+          state: {
+            ballX: 300, ballY: 200,
+            ballSpeedX: 5, ballSpeedY: 5,
+            p1Y: 160, p2Y: 160,
+            score1: 0, score2: 0,
+            width: 600, height: 400,
+            paddleHeight: 80, paddleWidth: 10, ballRadius: 8
+          },
+          interval: null
+        });
+        socket.join(roomId);
+        socket.emit("roomCreated", roomId);
+      } catch (err: any) {
+        socket.emit("error", "Failed to create room: " + err.message);
+      }
     });
 
     socket.on("joinRoom", (roomId) => {

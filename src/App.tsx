@@ -10,10 +10,34 @@ const PingPongGame = () => {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'playing'>('idle');
   const [scores, setScores] = useState({ player1: 0, player2: 0 });
   const [isPlayer1, setIsPlayer1] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastError, setLastError] = useState('');
 
   useEffect(() => {
-    const newSocket = io();
+    // Connect to the default origin
+    const newSocket = io({
+      transports: ['websocket', 'polling']
+    });
+    
     setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      setIsConnected(true);
+      setLastError('');
+    });
+
+    newSocket.on('connect_error', (err) => {
+      setLastError(`Connection error: ${err.message}`);
+      setIsConnected(false);
+    });
+
+    newSocket.on('disconnect', () => {
+      setIsConnected(false);
+    });
+
+    newSocket.on('serverMessage', (msg) => {
+      setLastError(`Server says: ${msg}`);
+    });
 
     newSocket.on('roomCreated', (id) => {
       setRoomId(id);
@@ -38,6 +62,7 @@ const PingPongGame = () => {
     });
 
     newSocket.on('error', (msg) => {
+      setLastError(msg);
       alert(msg);
     });
 
@@ -101,17 +126,49 @@ const PingPongGame = () => {
   }, [status, socket, roomId]);
 
   const createRoom = () => {
-    socket?.emit('createRoom');
+    if (!socket) {
+      setLastError('Socket is not initialized yet.');
+      return;
+    }
+    if (!isConnected) {
+      setLastError('Not connected to server. Please wait or refresh.');
+      return;
+    }
+    setLastError('');
+    socket.emit('createRoom');
   };
 
   const joinRoom = () => {
+    if (!socket) {
+      setLastError('Socket is not initialized yet.');
+      return;
+    }
+    if (!isConnected) {
+      setLastError('Not connected to server. Please wait or refresh.');
+      return;
+    }
     if (joinId.trim()) {
-      socket?.emit('joinRoom', joinId.trim());
+      setLastError('');
+      socket.emit('joinRoom', joinId.trim());
+    } else {
+      setLastError('Please enter a room code.');
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 my-8 p-6 bg-[#161b22] border border-[#30363d] rounded-xl">
+    <div className="flex flex-col items-center gap-4 my-8 p-6 bg-[#161b22] border border-[#30363d] rounded-xl relative">
+      <div className="absolute top-4 right-4 flex items-center gap-2 text-xs font-mono">
+        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3fb950]' : 'bg-[#f85149]'}`}></div>
+        <span className={isConnected ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+      {lastError && (
+        <div className="w-full bg-[#f85149]/10 border border-[#f85149]/30 text-[#f85149] px-4 py-2 rounded-lg text-sm text-center mb-4">
+          {lastError}
+        </div>
+      )}
+
       {status === 'idle' && (
         <div className="flex flex-col items-center gap-6 w-full max-w-[600px] py-8">
           <Gamepad2 className="w-16 h-16 text-[#8b949e]" />
