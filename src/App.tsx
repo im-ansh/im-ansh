@@ -17,7 +17,7 @@ const PingPongGame = () => {
     // Connect to the server using a specific path to avoid conflicts
     const newSocket = io(window.location.origin, {
       path: '/game-socket',
-      transports: ['polling', 'websocket'] // Start with polling, upgrade to websocket
+      transports: ['websocket'] // Force websocket to bypass XHR CORS/polling issues
     });
     
     setSocket(newSocket);
