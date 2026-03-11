@@ -1,10 +1,157 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Copy, Check, ExternalLink, Github, Code, Gamepad2, Megaphone, Palette } from 'lucide-react';
+
+const PingPongGame = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [scores, setScores] = useState({ player: 0, ai: 0 });
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    const paddleHeight = 80;
+    const paddleWidth = 10;
+    const ballRadius = 8;
+
+    let ballX = canvas.width / 2;
+    let ballY = canvas.height / 2;
+    let ballSpeedX = 5;
+    let ballSpeedY = 5;
+
+    let playerY = (canvas.height - paddleHeight) / 2;
+    let aiY = (canvas.height - paddleHeight) / 2;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const root = document.documentElement;
+      const mouseY = e.clientY - rect.top - root.scrollTop;
+      playerY = mouseY - paddleHeight / 2;
+      if (playerY < 0) playerY = 0;
+      if (playerY > canvas.height - paddleHeight) playerY = canvas.height - paddleHeight;
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+
+    const resetBall = () => {
+      ballX = canvas.width / 2;
+      ballY = canvas.height / 2;
+      ballSpeedX = -ballSpeedX;
+      ballSpeedY = 5 * (Math.random() > 0.5 ? 1 : -1);
+    };
+
+    const draw = () => {
+      // Clear
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw net
+      ctx.fillStyle = '#30363d';
+      for (let i = 0; i < canvas.height; i += 40) {
+        ctx.fillRect(canvas.width / 2 - 1, i, 2, 20);
+      }
+
+      // Move AI
+      const aiCenter = aiY + paddleHeight / 2;
+      if (aiCenter < ballY - 35) {
+        aiY += 4;
+      } else if (aiCenter > ballY + 35) {
+        aiY -= 4;
+      }
+      // Clamp AI
+      if (aiY < 0) aiY = 0;
+      if (aiY > canvas.height - paddleHeight) aiY = canvas.height - paddleHeight;
+
+      // Move Ball
+      ballX += ballSpeedX;
+      ballY += ballSpeedY;
+
+      // Bounce top/bottom
+      if (ballY - ballRadius < 0 || ballY + ballRadius > canvas.height) {
+        ballSpeedY = -ballSpeedY;
+      }
+
+      // Bounce paddles
+      // Player (Left)
+      if (ballX - ballRadius < paddleWidth) {
+        if (ballY > playerY && ballY < playerY + paddleHeight) {
+          ballSpeedX = -ballSpeedX;
+          const deltaY = ballY - (playerY + paddleHeight / 2);
+          ballSpeedY = deltaY * 0.2;
+        } else if (ballX < 0) {
+          setScores(s => ({ ...s, ai: s.ai + 1 }));
+          resetBall();
+        }
+      }
+
+      // AI (Right)
+      if (ballX + ballRadius > canvas.width - paddleWidth) {
+        if (ballY > aiY && ballY < aiY + paddleHeight) {
+          ballSpeedX = -ballSpeedX;
+          const deltaY = ballY - (aiY + paddleHeight / 2);
+          ballSpeedY = deltaY * 0.2;
+        } else if (ballX > canvas.width) {
+          setScores(s => ({ ...s, player: s.player + 1 }));
+          resetBall();
+        }
+      }
+
+      // Draw Paddles
+      ctx.fillStyle = '#58a6ff'; // Player
+      ctx.fillRect(0, playerY, paddleWidth, paddleHeight);
+      
+      ctx.fillStyle = '#ff7b72'; // AI
+      ctx.fillRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight);
+
+      // Draw Ball
+      ctx.beginPath();
+      ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#c9d1d9';
+      ctx.fill();
+      ctx.closePath();
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [isPlaying]);
+
+  return (
+    <div className="flex flex-col items-center gap-4 my-8 p-6 bg-[#161b22] border border-[#30363d] rounded-xl">
+      <div className="flex justify-between w-full max-w-[600px] px-4 font-mono text-xl">
+        <span className="text-[#58a6ff]">Player: {scores.player}</span>
+        <span className="text-[#ff7b72]">AI: {scores.ai}</span>
+      </div>
+      
+      {isPlaying ? (
+        <canvas 
+          ref={canvasRef} 
+          width={600} 
+          height={400} 
+          className="bg-[#0d1117] border border-[#30363d] rounded-lg shadow-inner cursor-none w-full max-w-[600px] aspect-[3/2]"
+        />
+      ) : (
+        <div 
+          className="w-full max-w-[600px] aspect-[3/2] bg-[#0d1117] border border-[#30363d] rounded-lg flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-[#58a6ff] transition-colors"
+          onClick={() => setIsPlaying(true)}
+        >
+          <Gamepad2 className="w-16 h-16 text-[#8b949e]" />
+          <span className="text-xl font-semibold text-white">Click to Play Ping Pong</span>
+          <span className="text-sm text-[#8b949e]">Use your mouse to move the paddle</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function App() {
   const [copied, setCopied] = useState(false);
@@ -17,6 +164,10 @@ export default function App() {
 
 # Hello Homo Sapiens 👋
 I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
+
+### 🏓 Want to play a game?
+GitHub doesn't support interactive games directly in the README, but I built a custom Ping Pong game you can play here:
+**[👉 Play Ping Pong with me!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)**
 
 ### ✨ Some of my qualities are
 - 💻 Coding
@@ -109,6 +260,17 @@ I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
               <p className="text-xl text-[#8b949e] leading-relaxed">
                 I'm <strong className="text-white">Ansh, Ansh Bhardwaj</strong>. I'm the Most Narcissistic Person you'll ever meet.
               </p>
+            </div>
+
+            {/* Ping Pong Game */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-semibold text-white mb-6 flex items-center gap-2 border-b border-[#30363d] pb-2">
+                🏓 Want to play a game?
+              </h2>
+              <p className="text-[#8b949e] mb-4">
+                GitHub doesn't support interactive games directly in the README, but I built a custom Ping Pong game you can play right here!
+              </p>
+              <PingPongGame />
             </div>
 
             {/* Qualities */}

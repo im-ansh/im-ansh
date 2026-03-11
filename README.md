@@ -7,6 +7,10 @@
 # Hello Homo Sapiens 👋
 I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
 
+### 🏓 Want to play a game?
+GitHub doesn't support interactive games directly in the README, but I built a custom Ping Pong game you can play here:
+**[👉 Play Ping Pong with me!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)**
+
 ### ✨ Some of my qualities are
 - 💻 Coding
 - 🎨 Graphic Designing
