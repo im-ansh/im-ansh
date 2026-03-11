@@ -9,6 +9,7 @@ async function startServer() {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
+    path: '/game-socket',
     cors: { origin: "*" }
   });
 

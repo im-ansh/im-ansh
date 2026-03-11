@@ -14,9 +14,10 @@ const PingPongGame = () => {
   const [lastError, setLastError] = useState('');
 
   useEffect(() => {
-    // Connect to the default origin
-    const newSocket = io({
-      transports: ['websocket', 'polling']
+    // Connect to the server using a specific path to avoid conflicts
+    const newSocket = io(window.location.origin, {
+      path: '/game-socket',
+      transports: ['polling', 'websocket'] // Start with polling, upgrade to websocket
     });
     
     setSocket(newSocket);
@@ -172,9 +173,9 @@ const PingPongGame = () => {
       {status === 'idle' && (
         <div className="flex flex-col items-center gap-6 w-full max-w-[600px] py-8">
           <Gamepad2 className="w-16 h-16 text-[#8b949e]" />
-          <h3 className="text-xl font-semibold text-white">Local Multiplayer Ping Pong</h3>
+          <h3 className="text-xl font-semibold text-white">Online Multiplayer Ping Pong</h3>
           <p className="text-[#8b949e] text-center max-w-md">
-            Play with a friend on the same Wi-Fi network! One person creates a room, the other joins using the code.
+            Play with a friend anywhere in the world! One person creates a room, the other joins using the code.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mt-4">
