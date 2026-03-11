@@ -165,9 +165,11 @@ export default function App() {
 # Hello Homo Sapiens 👋
 I'm **Ansh, Ansh Bhardwaj**. I'm the Most Narcissistic Person you'll ever meet.
 
-### 🏓 Want to play a game?
-GitHub doesn't support interactive games directly in the README, but I built a custom Ping Pong game you can play here:
-**[👉 Play Ping Pong with me!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)**
+### 🏓 Ping Pong
+<div align="center">
+  <img src="ping-pong.svg" alt="Ping Pong SVG Game" />
+</div>
+*GitHub doesn't support playable games in READMEs, but you can [play the real version here!](https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app)*
 
 ### ✨ Some of my qualities are
 - 💻 Coding
@@ -265,12 +267,19 @@ GitHub doesn't support interactive games directly in the README, but I built a c
             {/* Ping Pong Game */}
             <div className="mb-12">
               <h2 className="text-2xl font-semibold text-white mb-6 flex items-center gap-2 border-b border-[#30363d] pb-2">
-                🏓 Want to play a game?
+                🏓 Ping Pong
               </h2>
-              <p className="text-[#8b949e] mb-4">
-                GitHub doesn't support interactive games directly in the README, but I built a custom Ping Pong game you can play right here!
-              </p>
-              <PingPongGame />
+              <div className="flex flex-col items-center gap-4 mb-8">
+                <img src="/ping-pong.svg" alt="Ping Pong Animation" className="w-full max-w-[600px] rounded-xl shadow-lg border border-[#30363d]" />
+                <p className="text-[#8b949e] text-center text-sm">
+                  *GitHub doesn't support playable games in READMEs, but you can <a href="https://ais-pre-6t4lzf7auo6axiv3jsrbok-62027001889.asia-southeast1.run.app" target="_blank" rel="noreferrer" className="text-[#58a6ff] hover:underline">play the real version here!</a>*
+                </p>
+              </div>
+              
+              <div className="bg-[#161b22] p-6 rounded-xl border border-[#30363d]">
+                <h3 className="text-lg font-medium text-white mb-4 text-center">Playable Version (Website Only)</h3>
+                <PingPongGame />
+              </div>
             </div>
 
             {/* Qualities */}
